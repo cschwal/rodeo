@@ -1,1 +1,0 @@
-GNU AFFERO LIC
