@@ -135,6 +135,9 @@ my $bypassScore = 0;
 my @custHmms;
 my $hmmdir = "hmm";
  
+
+
+
 # get the complete command line for debugging or reproducibility purposes
 my $command_line = join " ", $0, @ARGV;
  
@@ -143,7 +146,10 @@ if (defined($indexX))
 {
     $bypassScore = 1;
 }
- 
+
+###############################################################################
+######################## Parse command line args  #############################
+###############################################################################
 my( $indexL )= grep { $ARGV[$_] eq "-l" } 0..$#ARGV;
 my( $indexP )= grep { $ARGV[$_] eq "-p" } 0..$#ARGV;
 my( $indexC )= grep { $ARGV[$_] eq "-c" } 0..$#ARGV;
@@ -598,16 +604,26 @@ ENDHTML
     close(FILE);
 }
  
+    
+###############################################################################
+######################## evaluate all GeneIds     #############################
+###############################################################################
+
+#for each gene id in @scaffs
+###set idGI to that geneID
+###clear all local vars
+### run main() with $mainGI
+
 sub evalAllIDgis
 {
     #print "running evalAllIDgis\n";
-    my @tempScaffs = @scaffs;
+    my @tempScaffs = @scaffs;                   #Create temporary array, assuming @scaffs is all geneids
     my $num_of_scaffs = scalar @scaffs;
     #print "running on $num_of_scaffs scaffs";
-    for (my $r = 1; $r < @tempScaffs; $r++) {
+    for (my $r = 1; $r < @tempScaffs; $r++) {      #for each geneid
         $idGI = $tempScaffs[$r];
         #print "    Evaluating nucleotide record with GI $idGI ... ";
-        clearIDGI();
+        clearIDGI();                          #clear all variables..? 
         main($mainGI);
         if (defined($indexCSVa))
     {
@@ -617,6 +633,8 @@ sub evalAllIDgis
     }
 }
  
+    
+    
 sub main 
 {
     @gis = fetchNeighboringGIS($mainGI);
@@ -2016,15 +2034,22 @@ sub getFxn
  
 }
  
- 
+###############################################################################
+######################## get neighbor sequences     ###########################
+###############################################################################
+#esearch -db protein -query $mainGI gets all protein seqids that match mainGI
+#TODO: what is the -target param for elink? ...similar to -db...
+#elink "Returns UIDs linked to an input set of UIDs in either the same or a different Entrez database"
+#nul.out contains the output of elink, i.e. the UIDs linked to the mainGI
+#CONTINUE goes to 'clear()' which clears vars used. dirty.
+
 sub fetchNeighboringGIS 
 {
 
-
+#TODO why is this called count_check?
 my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccore) &> nul.out);
 
-
-
+#TODO what is the format of  "nul.out"... is it one gid per line? probably...
     open FOPEN, '<', "nul.out";
     foreach my $line (<FOPEN>)  
     {
@@ -2044,6 +2069,8 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
                 print FILE '</h2>';
                 exit;
             }
+            
+#TODO why would these lines ever get executed?
             system("rm nul.out");
             if ($isList == 1) 
             {
@@ -2053,7 +2080,7 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
             {
                 exit;
             }
-
+###########################################
         }
     }
     close FOPEN;
@@ -2061,9 +2088,9 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
     my $prot_count = 0;
 
     foreach my $line (@count_check) {
-        if ( index($line, "Count") != -1) {
+        if ( index($line, "Count") != -1) { #find the line with "Count"
             $line =~ /([0-9]+)/;
-            $prot_count = $1;
+            $prot_count = $1; #dollar sign 1 ? guessing +=
             last;
         }
     }
@@ -2084,6 +2111,8 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
     }
  
     #my $val = qx(esearch -db protein -query $mainGI | elink -target nuccore | efetch | xtract);
+#TODO qx(esearch -db protein -query $mainGI | elink -target nuccore) already called !! waste of time
+#tr -s [:space:] contracts consecutive spaces to only one
     my $val = qx(esearch -db protein -query $mainGI | elink -target nuccore | efetch |  tr -s [:space:] ' ');
     if ( index($val, "Seq-entry") == -1 )
     {
@@ -2109,7 +2138,7 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
 
     #my @orfs = $val =~ /(product whole gi [0-9]* , location\s?[a-z]*?\s?[{]?\s? int { from [0-9]* , to [0-9]* .*?id gi [0-9]*)/g;
     my @orgs = $val =~ /(mRNA , ext name "[a-z]+ [a-z]+" } , partial [A-z]+ , )?(product whole gi [0-9]* , location\s?[a-z]*?\s?[{]?\s? int { from [0-9]* , to [0-9]* .*?id gi [0-9]*)/g;
-
+#'orgs' is temporary orf
     my @orfs = ();
     for (my $q = 0; $q < @orgs; $q++) 
     {
@@ -2120,6 +2149,7 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
 
     }
 
+#TODO look into this sorting magic
     @neighborGIs = sort {
       my ($aa) = $a =~ /(?:from ([0-9]*))/;
       my ($bb) = $b =~ /(?:from ([0-9]*))/;
@@ -2135,15 +2165,15 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
     my $foundFirstID = 0;
     for(my $j = 0; $j < @neighborGIs; $j++)
     {
-        my @guy = split / /, $neighborGIs[$j];
+        my @guy = split / /, $neighborGIs[$j]; #split by space
         if (index($neighborGIs[$j],$mainGI) != -1)
         {
             if ($foundFirstID == 0 && $idGI == 0)
             {
-                $idGI = $guy[@guy-1];
+                $idGI = $guy[@guy-1]; #why is idGI always the last GI?
                 $foundFirstID = 1;
             }
-            push(@scaffs, $guy[@guy-1]);
+            push(@scaffs, $guy[@guy-1]); #add again. need to check why "$guy[@guy-1]"
         }
     }
 
@@ -2180,7 +2210,7 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
         $temp_acc = @resArray[-1];
 
 
-
+        #evalAll ==0, but still evaluating all?
         if ($evalAll == 0) {
             $scaffHTML .= "<h4>MULTIPLE NUCLEOTIDE RECORDS FOUND, EVALUATING <a href='https://www.ncbi.nlm.nih.gov/protein/$temp_acc'>$temp_acc</a></h4><p><small>ALL FOUND ENTRIES:<br>";
             for(my $j = 0; $j < @scaffs; $j++)
@@ -2189,15 +2219,15 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
                 $url = $base .= "efetch.fcgi?db=protein&id=$scaffs[$j]&rettype=acc";
 
 #                $temp_acc = get($url);
-        my $ua = LWP::UserAgent->new;
-        my $req = HTTP::Request->new(GET => $url);
-        my $res = $ua->request($req);
-        $temp_acc = $res->as_string;
-        my @resArray = split("\n",$temp_acc);
-        $temp_acc = @resArray[-1];
+                my $ua = LWP::UserAgent->new;
+                my $req = HTTP::Request->new(GET => $url);
+                my $res = $ua->request($req);
+                $temp_acc = $res->as_string;
+                my @resArray = split("\n",$temp_acc);
+                $temp_acc = @resArray[-1];
 
 
-		chomp($temp_acc);
+            	   chomp($temp_acc);
                 $scaffHTML .= "<a href='https://www.ncbi.nlm.nih.gov/protein/$temp_acc'>$temp_acc</a><br>";
             }
             $scaffHTML .= "</small></p>";
@@ -2213,7 +2243,7 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
      
     my @neighboringEvals;
     my $count = 0;
-    # find GIs that have a matching idGI and extract all of them
+    #PARTH: find GIs that have a matching idGI and extract all of them
     foreach my $line (@neighborGIs) {
         if( index($line, $idGI) != -1 )
         {
@@ -2232,10 +2262,10 @@ my @count_check = qx( (esearch -db protein -query $mainGI | elink -target nuccor
         if ($neighboringEvals[$i] == $mainGI)
         {
             $indexOfInput = $i;
-            last; # end loop once we've found index
+            last; #PARTH: end loop once we've found index
         }
     }
-    # now narrow down neighbors to +/- 6
+    #PARTH: now narrow down neighbors to +/- 6
     my @conciseEvals;
     my $start = $indexOfInput - $numNeighbors;
     my $end = $indexOfInput + $numNeighbors;
