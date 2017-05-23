@@ -8,7 +8,8 @@ Created on Thu May 17 19:48:13 2017
 
 from Bio import Entrez
 
-
+class Intergenic_seq(object):
+    def __init__(self):
 
 class Orf(object):
     def __init__(self):
@@ -22,7 +23,7 @@ class Orf(object):
         self.direction = "None"
         self.id_gi = -1
         
-class Query(object):
+class Efetch_result(object):
     def __init__(self, query, query_type="acc"):
         self.id = query
         self.idtype = query_type
@@ -32,6 +33,60 @@ class Query(object):
         self.cluster_length = ""
         self.genus = ""
         self.species = ""
+        
+    
+    def trim_to_n_neighbors(self, N):
+        #make sure theyre sorted..
+        self.orfs.sort(key=lambda orf: orf.start)
+        for i in range(len(self.orfs)):
+            orf = self.orfs[i]
+            if orf.accession == self.id or orf.id_gi == self.id:
+                #we found the query node, now get rid of all other orfs outside the 
+                #neighborhood. 
+                print(i)
+                if i == 0 or i == len(self.orfs):
+                    self.orfs = self.orfs[max(0,i-N-1):min(i+N+1,len(self.orfs))]
+                else:
+                    self.orfs = self.orfs[max(0,i-N):min(i+N+1,len(self.orfs))]
+                break
+        return
+                
+    def trim_to_n_nucleotides(self, N):
+        #make sure theyre sorted..
+        self.orfs.sort(key=lambda orf: orf.start)
+        start_index = -1 #unset till we find it
+        query_pos_left = 0
+        query_pos_right = 0
+        end_index = -1 #unset till we find it
+        for i in range(len(self.orfs)):
+            orf = self.orfs[i]
+            if orf.accession == self.id or orf.id_gi == self.id:
+                query_pos_left = min(orf.start,orf.end)
+                query_pos_right = max(orf.start,orf.end)
+                
+        for i in range(len(self.orfs)):
+            orf = self.orfs[i]
+            if orf.start > query_pos_left - N and start_index == -1:
+                start_index = i
+            elif orf.start > query_pos_right + N:
+                end_index = i
+                break
+            
+        self.orfs = self.orfs[start_index:end_index]
+        return
+        
+    def print_info(self):
+        print("="*50)
+        counter = 0
+        for orf in self.orfs:
+            print(counter)
+            counter+=1
+            if orf.accession == self.id or orf.id_gi == self.id:
+                print("QUERY Accession:  " + orf.accession)
+            else:
+                print("Accession:  " + orf.accession)
+            print("Coords:  " + str(orf.start) + " to " +  str(orf.end))
+        print("="*50)
 
 def get_tag_contents(line, tag):
     """
@@ -64,7 +119,6 @@ def get_efetch_results(query, batchSize=1, retmax=10**9, idtype="acc"):
     if int(total_count) < 1:
         print("ERROR: Esearch returns no results for query " + query)
         return
-    search_record = Entrez.read(Entrez.esearch(db="protein",term=query,retmax=retmax ))#TODO not sure about the db arg...
     IdList = record["IdList"]#TODO may be multiple, need an outer for loop
     link_records = Entrez.read(Entrez.elink(dbfrom="protein",db="nuccore",id=IdList))
     nuccore_ids=[]
@@ -101,7 +155,7 @@ def get_efetch_results(query, batchSize=1, retmax=10**9, idtype="acc"):
         
         if key_type == "set":
             #Get information from record.
-            return_query = Query(query)
+            return_query = Efetch_result(query)
             #Backslashes look cleaner than one long string
 #            for orf in record['Bioseq-set_seq-set']\
 #                               [0]['Seq-entry_set']\
@@ -184,19 +238,25 @@ def get_efetch_results(query, batchSize=1, retmax=10**9, idtype="acc"):
                         print(e)
                       
                     #Get accession_ids
-                    try:
-                        accession_id = orf_info['Seq-entry_seq']['Bioseq']['Bioseq_id']\
-                                            [0]['Seq-id_ddbj']['Textseq-id']\
-                                            ['Textseq-id_accession']
-                        current_orf.accession = accession_id
-                        
-                        version = orf_info['Seq-entry_seq']['Bioseq']['Bioseq_id']\
-                                        [0]['Seq-id_ddbj']['Textseq-id']\
-                                        ['Textseq-id_version']
-                        current_orf.accession += "." + str(version)
-                    except Exception as e:
-                        print("ERROR:\t Exception when getting accession")
-                        print(e)
+                    #TODO find where the db is stored and just use that
+                    for db in ["ddbj", "embl", "ncbi", "gb"]:
+                        try:
+                            success = False
+                            accession_id = orf_info['Seq-entry_seq']['Bioseq']['Bioseq_id']\
+                                                [0]['Seq-id_' + db]['Textseq-id']\
+                                                ['Textseq-id_accession']
+                            current_orf.accession = accession_id
+                            
+                            version = orf_info['Seq-entry_seq']['Bioseq']['Bioseq_id']\
+                                            [0]['Seq-id_' + db]['Textseq-id']\
+                                            ['Textseq-id_version']
+                            current_orf.accession += "." + str(version)
+                            success = True
+                        except Exception as e:
+                            print("ERROR:\t Exception when getting accession with db = " + db)
+                            print(e)
+                        if success:
+                            break
                         
                     #Get sequence
                     try:
@@ -226,8 +286,8 @@ def get_efetch_results(query, batchSize=1, retmax=10**9, idtype="acc"):
                                                         
                                 seq_end = seq_location_info['Seq-interval_to']
                                 seq_start = seq_location_info['Seq-interval_from']
-                                current_orf.start = int(seq_start) + 1
-                                current_orf.end = int(seq_end) + 1
+                                current_orf.start = int(seq_start)
+                                current_orf.end = int(seq_end) 
                                 direction = "fwd"
                                 if seq_start > seq_end:
                                     direction = "rev"
@@ -240,6 +300,9 @@ def get_efetch_results(query, batchSize=1, retmax=10**9, idtype="acc"):
                         
                 
     return return_query
+
+
+    
 
             
     
