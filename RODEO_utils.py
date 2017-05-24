@@ -7,10 +7,18 @@ Created on Thu May 17 19:48:13 2017
 """
 
 from Bio import Entrez
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
 
 class Intergenic_seq(object):
-    def __init__(self):
-
+    def __init__(self, start_idx, end_idx, nn_seq):
+        self.start_idx = start_idx
+        self.end_idx = self.end_idx
+        
+    
+    def translate(self):
+        pass
+    
 class Orf(object):
     def __init__(self):
         self.species = ""
@@ -28,6 +36,7 @@ class Efetch_result(object):
         self.id = query
         self.idtype = query_type
         self.orfs = []
+        self.intergenic_seqs = []
         self.cluster_accession = ""
         self.cluster_sequence = ""
         self.cluster_length = ""
@@ -74,7 +83,14 @@ class Efetch_result(object):
             
         self.orfs = self.orfs[start_index:end_index]
         return
-        
+    
+    def get_intergenic_seqs(self):
+        for orf in self.orfs:
+            seq_start = orf.start
+            seq_end = orf.end
+            nn_subseq = self.cluster_sequence[seq_start:seq_end+1]
+            self.intergenic_seqs.append(Intergenic_seq(nn_subseq))
+    
     def print_info(self):
         print("="*50)
         counter = 0
