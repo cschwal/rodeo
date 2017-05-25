@@ -7,7 +7,7 @@ The limits represent the length constraints on the potential ORFs. The default r
 
 When ran with ```test_file.gbk```, the output is as appears below:
 ~~~~
-user@machine:/~path$ python genebank_to_igorfs.py file
+user@machine:/~path$ python genebank_to_igorfs.py test_file.gbk
 
 Record c00021_N912Ps
 
