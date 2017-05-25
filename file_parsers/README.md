@@ -1,7 +1,7 @@
-##Genbank_to_igorf.py
+## Genbank_to_igorf.py
 Genbank file parser for extracting potential intergenic ORFs from  intergenic sequences. 
 
-###Usage
+### Usage
 ```python genebank_to_igorf.py file [-l LOWER_LIMIT ] [-u UPPER_LIMIT] ```
 The limits represent the length constraints on the potential ORFs. The default range is 40 to1000000.  
 
@@ -30,5 +30,5 @@ MPPGGCWTPPATAPSSASAQPIPKVMPPAAHSRWRRTLGVPLQATFRLIYSAKSPRPGSGGRTESLSSIGTGIRLRPETI
 ************************************************************
 ~~~~
 
-###Requirements
+### Requirements
  -[Biopython](http://biopython.org/wiki/Biopython)
