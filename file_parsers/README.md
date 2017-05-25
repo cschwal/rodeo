@@ -1,4 +1,4 @@
-## Genbank_to_igorfs.py
+## Genbank to intergenic ORFs
 Genbank file parser for extracting potential intergenic ORFs from  intergenic sequences. 
 
 ### Usage
