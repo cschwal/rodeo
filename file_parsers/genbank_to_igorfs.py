@@ -13,8 +13,10 @@ from Bio.Alphabet import IUPAC
 from Bio import SeqIO
 
 class My_record(object):
-    
-    def __init__(self, record):
+    """Contains member functions and variables for handline *.gbk files"""
+    def __init__(self, record, min_aa_length, max_aa_length):
+        """record is the output of Bio.SeqIO.parse()"""
+        self.id = record.id
         self.record = record
         self.sequence = record.seq
         self.CDSs = []
@@ -22,37 +24,44 @@ class My_record(object):
         self.intergenic_orfs = []
         self.start_codons = ['ATG','GTG', 'TTG']
         self.stop_codons = ['TAA','TAG','TGA']
+        self.set_CDSs()
+        self.set_intergenic_seqs()
+        self.min_aa_length = min_aa_length
+        self.set_intergenic_orfs(min_aa_length, max_aa_length)
             
         
     class Sub_seq(object):
+        """Useful for storing subsequences and their coordinates"""
         def __init__(self, seq, start, end):
             self.start = start
             self.end = end
             self.sequence = seq
             
                 
-    def get_CDSs(self):
+    def set_CDSs(self):
+        """Get CDSs from record"""
         for feature in self.record.features:
             if feature.type == 'CDS':
                 start = int(feature.location.start)
                 end = int(feature.location.end)
-                orf = self.Sub_seq(seq = "", start=start, end=end) #Don't need CDS seq...
-                self.CDSs.append(orf)
+                cds = self.Sub_seq(seq = "", start=start, end=end) #Don't need CDS seq...
+                self.CDSs.append(cds)
        
-    def get_intergenic_seqs(self):
+    def set_intergenic_seqs(self):
         start = 0
-        for orf in self.CDSs:
-            end = orf.start
-            nn_seq = self.sequence[start:end]
-            intergenic_sequence = self.Sub_seq(seq=nn_seq, 
+        for cds in self.CDSs:
+            end = cds.start
+            nt_seq = self.sequence[start:end]
+            intergenic_sequence = self.Sub_seq(seq=nt_seq, 
                                                start = start,
                                                end=end)
             self.intergenic_seqs.append(intergenic_sequence)
-            start = orf.end
+            start = cds.end
     
-    def get_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length=1000000):
+    def set_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length=1000000):
         for intergenic_seq in self.intergenic_seqs:
-            OFFSET = intergenic_seq.start #OFFSET will adjust for the main sequence
+            #OFFSET will adjust for the main sequence
+            OFFSET = intergenic_seq.start 
             for strand, sequence in [(1, intergenic_seq.sequence),
                                      (-1, intergenic_seq.sequence.reverse_complement())]:
                 start = 0
@@ -60,7 +69,8 @@ class My_record(object):
                     start = sequence.find(start_codon, start)
                     if start == -1:
                         continue
-                    end = start + 3
+                    #Start searching right before our threshold
+                    end = start + int(self.min_aa_length/3) - 1 
                     found_stop = False
                     while end < len(sequence):
                         codon = sequence[end:end+3]
@@ -85,9 +95,12 @@ class My_record(object):
                         old_end = end
                         end = len(sequence) - start
                         start = len(sequence) - old_end - 3
+                        potential_orf = self.Sub_seq(aa_sequence, end+OFFSET, start+OFFSET)
                     else:
                         end = end + 3
-                    potential_orf = self.Sub_seq(aa_sequence, start+OFFSET, end+OFFSET)
+                        potential_orf = self.Sub_seq(aa_sequence, start+OFFSET, end+OFFSET)
+                    
+                    
                     self.intergenic_orfs.append((strand, potential_orf))
 
 
@@ -111,18 +124,16 @@ def __main__():
     upper_lim = ARGS.u
     lower_lim = ARGS.l
 
-    records = SeqIO.parse(input_file,"genbank")
-    for record in records:
-        main_record = My_record(record)
-        main_record.get_CDSs()
-        main_record.get_intergenic_seqs()
-        main_record.get_intergenic_orfs(lower_lim, upper_lim)
-    
-    for strand, orf in main_record.intergenic_orfs:
-        print("Potential ORF of length " + str(len(orf.sequence)) + 
-              " found at " + str(orf.start) + ":" + str(orf.end) + 
-              " on strand " + str(strand))
-        print(orf.sequence + '\n')
+    records = SeqIO.parse(input_file,"genbank") 
+    for record in records: #may have multiple records in file
+        main_record = My_record(record, lower_lim, upper_lim)
+        print("Record " + main_record.id +'\n')
+        for strand, orf in main_record.intergenic_orfs:
+            print("Potential ORF of length " + str(len(orf.sequence)) + 
+                  " found at " + str(orf.start) + ":" + str(orf.end) + 
+                  " on strand " + str(strand))
+            print(orf.sequence + '\n')
+        print("*"*60)
 
 
 __main__()
