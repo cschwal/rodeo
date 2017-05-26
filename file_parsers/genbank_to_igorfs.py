@@ -70,7 +70,7 @@ class My_record(object):
                     if start == -1:
                         continue
                     #Start searching right before our threshold
-                    end = start + int(self.min_aa_length/3) - 1 
+                    end = start + (self.min_aa_length-1)*3
                     found_stop = False
                     while end < len(sequence):
                         codon = sequence[end:end+3]
