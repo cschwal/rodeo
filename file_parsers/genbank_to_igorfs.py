@@ -55,7 +55,7 @@ class My_record(object):
             self.intergenic_seqs.append(intergenic_sequence)
             start = cds.end
     
-    def set_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length=1000000):
+    def set_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length):
         for intergenic_seq in self.intergenic_seqs:
             #OFFSET will adjust for the main sequence
             OFFSET = intergenic_seq.start 
