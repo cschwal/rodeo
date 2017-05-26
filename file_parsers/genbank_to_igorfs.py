@@ -116,8 +116,8 @@ class My_record(object):
 def __main__():
     parser = argparse.ArgumentParser("Get intergenic potential ORFs from *.gbk file")
     parser.add_argument('file', type=str)  #input file
-    parser.add_argument('-u', type=int, default=1000000, help='Maximum size of potential ORF') 
-    parser.add_argument('-l', type=int, default=50, help='Minimum size of potential ORF') 
+    parser.add_argument('-u', type=int, default=100, help='Maximum size of potential ORF') 
+    parser.add_argument('-l', type=int, default=20, help='Minimum size of potential ORF') 
     ARGS, unparsed = parser.parse_known_args()
     
     input_file = ARGS.file
