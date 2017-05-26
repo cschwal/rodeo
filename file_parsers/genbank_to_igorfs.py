@@ -7,9 +7,6 @@ Created on Wed May 24 21:53:38 2017
 """
 
 import argparse
-from Bio import Entrez
-from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 from Bio import SeqIO
 
 class My_record(object):
