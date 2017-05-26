@@ -61,50 +61,60 @@ class My_record(object):
                                            end=end)
         self.intergenic_seqs.append(intergenic_sequence)
     
-    def set_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length):
+    def set_intergenic_orfs(self, min_aa_seq_length=20, max_aa_seq_length=100):
         for intergenic_seq in self.intergenic_seqs:
             #OFFSET will adjust for the main sequence
+#            print(intergenic_seq.sequence)
+#            print(len(intergenic_seq.sequence))
             OFFSET = intergenic_seq.start 
-            for strand, sequence in [(1, intergenic_seq.sequence),
-                                     (-1, intergenic_seq.sequence.reverse_complement())]:
-                start = 0
-                for start_codon in self.start_codons:
-                    start = sequence.find(start_codon, start)
-                    if start == -1:
-                        continue
-                    #Start searching right before our threshold
-                    end = start
-                    found_stop = False
-                    while end < len(sequence):
-                        codon = sequence[end:end+3]
-                        if str(codon) in self.stop_codons:
-                            found_stop = True
+            for start_codon in self.start_codons:
+                for strand, sequence in [(1, intergenic_seq.sequence),
+                                         (-1, intergenic_seq.sequence.reverse_complement())]:
+                    
+                    #Stay in the loop until we can't find a stop codon
+                    found_stop = True
+                    next_start = 0
+                    while found_stop:
+                        start = sequence.find(start_codon, next_start)
+                        next_start = start + 1
+                        if start == -1:
                             break
+                        end = start 
+                        found_stop = False
+                        while end < len(sequence):
+                            codon = sequence[end:end+3]
+                            if str(codon) in self.stop_codons:
+                                found_stop = True
+                                break
+                            else:
+                                end = end + 3
+                        
+                        if not found_stop:
+                            break
+                        
+                        if (end-start)/3 > max_aa_seq_length or \
+                            (end-start)/3 < min_aa_seq_length:
+                            continue
+                        
+                        nt_subsequence = sequence[start:end+3]
+                        aa_sequence = nt_subsequence.translate(11)
+                        
+                        #get nucleotide coords for original strand
+                        if strand == -1:
+                            old_end = end
+                            end = len(sequence) - start
+                            start = len(sequence) - old_end - 3
+                            potential_orf = self.Sub_seq(aa_sequence,
+                                                         end+OFFSET,
+                                                         start+OFFSET)
                         else:
                             end = end + 3
-                    
-                    if not found_stop:
-                        continue
-                    
-                    if (end-start)/3 > max_aa_seq_length or \
-                        (end-start)/3 < min_aa_seq_length:
-                        continue
-                    
-                    nt_subsequence = sequence[start:end+3]
-                    aa_sequence = nt_subsequence.translate(11)
-                    
-                    #get nucleotide coords for original strand
-                    if strand == -1:
-                        old_end = end
-                        end = len(sequence) - start
-                        start = len(sequence) - old_end - 3
-                        potential_orf = self.Sub_seq(aa_sequence, end+OFFSET, start+OFFSET)
-                    else:
-                        end = end + 3
-                        potential_orf = self.Sub_seq(aa_sequence, start+OFFSET, end+OFFSET)
-                    
-                    
-                    self.intergenic_orfs.append((strand, potential_orf))
+                            potential_orf = self.Sub_seq(aa_sequence,
+                                                         start+OFFSET,
+                                                         end+OFFSET)
+                        
+                        
+                        self.intergenic_orfs.append((strand, potential_orf))
 
 
 
@@ -132,7 +142,7 @@ def __main__():
         main_record = My_record(record, lower_lim, upper_lim)
         print("Record " + main_record.id +'\n')
         for strand, orf in main_record.intergenic_orfs:
-            print("Potential ORF of length " + str(len(orf.sequence)) + 
+            print("Potential ORF of length " + str(len(orf.sequence)-1) + 
                   " found at " + str(orf.start) + ":" + str(orf.end) + 
                   " on strand " + str(strand))
             print(orf.sequence + '\n')
