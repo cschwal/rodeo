@@ -10,7 +10,7 @@ import argparse
 from Bio import SeqIO
 
 class My_record(object):
-    """Contains member functions and variables for handline *.gbk files"""
+    """Contains member functions and variables for handling *.gbk files"""
     def __init__(self, record, min_aa_length, max_aa_length):
         """record is the output of Bio.SeqIO.parse()"""
         self.id = record.id
@@ -54,6 +54,12 @@ class My_record(object):
                                                end=end)
             self.intergenic_seqs.append(intergenic_sequence)
             start = cds.end
+        nt_seq = self.sequence[start:]
+        end = len(self.sequence)
+        intergenic_sequence = self.Sub_seq(seq=nt_seq, 
+                                           start=start,
+                                           end=end)
+        self.intergenic_seqs.append(intergenic_sequence)
     
     def set_intergenic_orfs(self, min_aa_seq_length, max_aa_seq_length):
         for intergenic_seq in self.intergenic_seqs:
@@ -67,7 +73,7 @@ class My_record(object):
                     if start == -1:
                         continue
                     #Start searching right before our threshold
-                    end = start + (self.min_aa_length-1)*3
+                    end = start
                     found_stop = False
                     while end < len(sequence):
                         codon = sequence[end:end+3]
